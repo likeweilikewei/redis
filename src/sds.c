@@ -193,6 +193,7 @@ void sdsupdatelen(sds s) {
 void sdsclear(sds s) {
     sdssetlen(s, 0);
     // 惰性删除
+    //
     s[0] = '\0';
 }
 
