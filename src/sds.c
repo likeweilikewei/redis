@@ -193,7 +193,7 @@ void sdsupdatelen(sds s) {
 void sdsclear(sds s) {
     sdssetlen(s, 0);
     // 惰性删除
-    //
+    // 不删除内存空间，节省下次重新申请内存空间的时间
     s[0] = '\0';
 }
 
