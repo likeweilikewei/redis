@@ -191,6 +191,8 @@ void sdsupdatelen(sds s) {
  * so that next append operations will not require allocations up to the
  * number of bytes previously available. */
 void sdsclear(sds s) {
+    // just reset len and buf, not reclaim memory. next time will save request memory time.
+    // 内存惰性回收
     sdssetlen(s, 0);
     s[0] = '\0';
 }
