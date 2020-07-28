@@ -1,5 +1,6 @@
 /* adlist.h - A generic doubly linked list implementation
  * redis的链表实现，应用在列表之中
+ * 
  * Copyright (c) 2006-2012, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
  *
