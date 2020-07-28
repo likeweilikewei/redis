@@ -59,6 +59,7 @@
  * Note that even when dict_can_resize is set to 0, not all resizes are
  * prevented: a hash table is still allowed to grow if the ratio between
  * the number of elements and the buckets > dict_force_resize_ratio. */
+//标识是否可以调整字典大小
 static int dict_can_resize = 1;
 static unsigned int dict_force_resize_ratio = 5;
 
@@ -83,7 +84,7 @@ uint8_t *dictGetHashFunctionSeed(void) {
 
 /* The default hashing function uses SipHash implementation
  * in siphash.c. */
-
+//字典采用的hash算法
 uint64_t siphash(const uint8_t *in, const size_t inlen, const uint8_t *k);
 uint64_t siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k);
 
@@ -98,7 +99,8 @@ uint64_t dictGenCaseHashFunction(const unsigned char *buf, int len) {
 /* ----------------------------- API implementation ------------------------- */
 
 /* Reset a hash table already initialized with ht_init().
- * NOTE: This function should only be called by ht_destroy(). */
+ * NOTE: This function should only be called by ht_destroy(). 
+ * 重置hash表*/
 static void _dictReset(dictht *ht)
 {
     ht->table = NULL;
@@ -111,13 +113,15 @@ static void _dictReset(dictht *ht)
 dict *dictCreate(dictType *type,
         void *privDataPtr)
 {
+    //申请信字典空间
     dict *d = zmalloc(sizeof(*d));
-
+    //给申请的新字典初始化
     _dictInit(d,type,privDataPtr);
     return d;
 }
 
-/* Initialize the hash table */
+/* Initialize the hash table 
+初始化字典，包括两个哈希表,返回0表示初始化正确*/
 int _dictInit(dict *d, dictType *type,
         void *privDataPtr)
 {
@@ -131,46 +135,59 @@ int _dictInit(dict *d, dictType *type,
 }
 
 /* Resize the table to the minimal size that contains all the elements,
- * but with the invariant of a USED/BUCKETS ratio near to <= 1 */
+ * but with the invariant of a USED/BUCKETS ratio near to <= 1 
+ * 调整字典大小size到最小*/
 int dictResize(dict *d)
 {
     unsigned long minimal;
-
+    //当可以更改大小且没有rehash时候可以进行最小化
     if (!dict_can_resize || dictIsRehashing(d)) return DICT_ERR;
+    //得到字典哈希表节点数量
     minimal = d->ht[0].used;
+    //当目前使用的节点数不足最小初始化节点数时候，只能缩容为最小节点数4
     if (minimal < DICT_HT_INITIAL_SIZE)
         minimal = DICT_HT_INITIAL_SIZE;
+    //将字典容量扩容为最小数量，也就是缩容
     return dictExpand(d, minimal);
 }
 
-/* Expand or create the hash table */
+/* Expand or create the hash table 
+扩容到指定size大小*/
 int dictExpand(dict *d, unsigned long size)
 {
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hash table */
     if (dictIsRehashing(d) || d->ht[0].used > size)
         return DICT_ERR;
-
+    //新的哈希表
     dictht n; /* the new hash table */
+    //得到第一个大于等于size的2的幂次方
     unsigned long realsize = _dictNextPower(size);
 
-    /* Rehashing to the same table size is not useful. */
+    /* Rehashing to the same table size is not useful. 
+    如果新大小和原大小一致则直接返回*/
     if (realsize == d->ht[0].size) return DICT_ERR;
 
     /* Allocate the new hash table and initialize all pointers to NULL */
+    //初始化新的哈希表
     n.size = realsize;
     n.sizemask = realsize-1;
+    //申请该最终大小的哈希表内存
     n.table = zcalloc(realsize*sizeof(dictEntry*));
     n.used = 0;
 
     /* Is this the first initialization? If so it's not really a rehashing
      * we just set the first hash table so that it can accept keys. */
+    //除非第一次设置字典，否则不直接覆盖ht[0]，这样在扩容的时候，原来的字典也可以继续进行删改查
     if (d->ht[0].table == NULL) {
         d->ht[0] = n;
         return DICT_OK;
     }
 
     /* Prepare a second hash table for incremental rehashing */
+    //将扩容后的哈希表放在ht[1]，并重置rehashidx为0，表示开始rehash，由于是渐进式rehash，因此该扩容
+    //将在每一次对该字典的增删改查后搬一个哈希表节点ht[0]->table[rehashidx]到ht[1]上，并自增rehashidx，直到所有原来的哈希表被搬完。释放ht[0],
+    //将ht[1]设置为ht[0]，新申请一个空的哈希表，设为ht[1]
     d->ht[1] = n;
     d->rehashidx = 0;
     return DICT_OK;
@@ -971,7 +988,8 @@ static int _dictExpandIfNeeded(dict *d)
     return DICT_OK;
 }
 
-/* Our hash table capability is a power of two */
+/* Our hash table capability is a power of two 
+redis字典容量大小只能为2的幂次方，且在【DICT_HT_INITIAL_SIZE，LONG_MAX】之间*/
 static unsigned long _dictNextPower(unsigned long size)
 {
     unsigned long i = DICT_HT_INITIAL_SIZE;

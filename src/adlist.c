@@ -182,7 +182,10 @@ void listDelNode(list *list, listNode *node)
 /* Returns a list iterator 'iter'. After the initialization every
  * call to listNext() will return the next element of the list.
  *
- * This function can't fail. */
+ * This function can't fail. 
+ * 返回链表的起始或者结尾的迭代器，迭代的方向由direction决定
+ * direction决定了迭代器是沿着next指针向后迭代，还是沿着prev指针向前迭代，这个值可以是adlist.h中的AL_START_HEAD常量或AL_START_TAIL常量：
+ * */
 listIter *listGetIterator(list *list, int direction)
 {
     listIter *iter;
@@ -196,17 +199,19 @@ listIter *listGetIterator(list *list, int direction)
     return iter;
 }
 
-/* Release the iterator memory */
+/* Release the iterator memory 释放迭代器内存*/
 void listReleaseIterator(listIter *iter) {
     zfree(iter);
 }
 
-/* Create an iterator in the list private iterator structure */
+/* Create an iterator in the list private iterator structure 
+创建一个从头开始的迭代器*/
 void listRewind(list *list, listIter *li) {
     li->next = list->head;
     li->direction = AL_START_HEAD;
 }
 
+//创建一个从尾部开始的迭代器
 void listRewindTail(list *list, listIter *li) {
     li->next = list->tail;
     li->direction = AL_START_TAIL;
@@ -224,7 +229,7 @@ void listRewindTail(list *list, listIter *li) {
  * while ((node = listNext(iter)) != NULL) {
  *     doSomethingWith(listNodeValue(node));
  * }
- *
+ *得到链表的下一个节点，可以用listDelNode删除当前价节点，但是不能删除其他节点
  * */
 listNode *listNext(listIter *iter)
 {
@@ -246,7 +251,8 @@ listNode *listNext(listIter *iter)
  * to copy the node value. Otherwise the same pointer value of
  * the original node is used as value of the copied node.
  *
- * The original list both on success or error is never modified. */
+ * The original list both on success or error is never modified. 
+ * 赋值链表，如果链表值也需要复制，采用dup复制值，否则直接添加节点值为新节点到链表尾部*/
 list *listDup(list *orig)
 {
     list *copy;
@@ -255,13 +261,16 @@ list *listDup(list *orig)
 
     if ((copy = listCreate()) == NULL)
         return NULL;
+    //获取复制、释放、对比函数，并复制到新链表中
     copy->dup = orig->dup;
     copy->free = orig->free;
     copy->match = orig->match;
+    //创建一个从头开始的迭代器
     listRewind(orig, &iter);
+    //返回当前节点的下一个节点，这里的下一个也可能是前一个节点，需要看方向
     while((node = listNext(&iter)) != NULL) {
         void *value;
-
+        //如果值有复制函数，需要复制值
         if (copy->dup) {
             value = copy->dup(node->value);
             if (value == NULL) {
@@ -269,7 +278,9 @@ list *listDup(list *orig)
                 return NULL;
             }
         } else
+        //否则直接复制值
             value = node->value;
+        //采用追加的方式添加到节点尾部
         if (listAddNodeTail(copy, value) == NULL) {
             listRelease(copy);
             return NULL;
