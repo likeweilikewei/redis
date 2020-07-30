@@ -883,25 +883,44 @@ struct sharedObjectsStruct {
     sds minstring, maxstring;
 };
 
-/* ZSETs use a specialized version of Skiplists */
+/* ZSETs use a specialized version of Skiplists 
+跳跃表节点*/
 typedef struct zskiplistNode {
+    //用简单动态字符串表示跳表值
     sds ele;
+    //分值，跳跃表所有节点按照分值从小到大来排序，当分值相同时候，按照值字典序排列
     double score;
+    //后退指针，用于从表尾向表头方向遍历，每个节点只有一个后退指针，每次只能后退到前一个节点
     struct zskiplistNode *backward;
+    //记录层次的数组
+    /*跳跃表节点的level数组可以包含多个元素，每个元素都包含一个指向其他节点的指针， 程序可以通过这些层来加快访问其他节点的速度，
+    一般来说，层的数量越多，访问其他节点 的速度就越快。 每次创建一个新跳跃表节点的时候，程序都根据幂次定律（power law，越大的数出现的 概率越小）
+    随机生成一个介于1和32之间的值作为level数组的大小，这个大小就是层的“高 度”。图5-2分别展示了三个高度为1层、3层和5层的节点，因为C语言的数组索引总是从0开始 的，
+    所以节点的第一层是level[0]，而第二层是level[1]，以此类推。*/
     struct zskiplistLevel {
+        //前进指针，用于从表头向表尾方向遍历跳跃表节点
         struct zskiplistNode *forward;
+        //跨度，记录两个节点之间的距离，例如两个相邻节点间跨度为1，指向NULL的所有前进指针跨度都为0，只有前进节点有跨度，后退节点没有跨度。
+        //跨度是用来计算排位，即rank，在查找某个节点的过程中，将沿途访问过的所有层的跨度累计起来，就是目标节点在跳跃表中的位置，这里计算排位时候需要加上表头节点到后序节点的跨度
         unsigned long span;
     } level[];
 } zskiplistNode;
 
+//跳跃表
 typedef struct zskiplist {
+    //跳跃表表头节点和表尾节点，表头节点只记录层次信息，记录指向每一层第一个节点的指针，不记录具体数据，表尾节点记录具体数据
     struct zskiplistNode *header, *tail;
+    //跳跃表长度，也就是跳跃表节点个数，不包括表头结点
     unsigned long length;
+    //最大层数
     int level;
 } zskiplist;
 
+//有序集合
 typedef struct zset {
+    //字典，键为成员，值为分值，用于支持O(1)取成员分值
     dict *dict;
+    //跳跃表，按照分值排序成员，用于支持平均复杂度o（logn）的按分值定位成员的操作和范围操作
     zskiplist *zsl;
 } zset;
 
@@ -1923,13 +1942,21 @@ typedef struct {
     int minex, maxex; /* are min or max exclusive? */
 } zlexrangespec;
 
+//创建跳跃表
 zskiplist *zslCreate(void);
+//释放跳跃表以及表中所有节点
 void zslFree(zskiplist *zsl);
+//将给定成员和分值的新节点添加到跳跃表中，平均为O（logN），最坏为O(N)
 zskiplistNode *zslInsert(zskiplist *zsl, double score, sds ele);
+// 将 元素和分值 取出来 写入 压缩列表 相邻的两个 节点中
 unsigned char *zzlInsert(unsigned char *zl, sds ele, double score);
+//删除给定成员和分值的节点
 int zslDelete(zskiplist *zsl, double score, sds ele, zskiplistNode **node);
+//找到一个zskiplist中第一个出现在range中的节点,符合后者分值条件的节点
 zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec *range);
+//找到跳表中最后一个出现在range中的节点
 zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec *range);
+//
 double zzlGetScore(unsigned char *sptr);
 void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr);
 void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr);
@@ -1939,6 +1966,7 @@ unsigned long zsetLength(const robj *zobj);
 void zsetConvert(robj *zobj, int encoding);
 void zsetConvertToZiplistIfNeeded(robj *zobj, size_t maxelelen);
 int zsetScore(robj *zobj, sds member, double *score);
+//返回给定成员和分值的跳跃表节点在跳跃表中的排位
 unsigned long zslGetRank(zskiplist *zsl, double score, sds o);
 int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore);
 long zsetRank(robj *zobj, sds ele, int reverse);
@@ -1951,6 +1979,7 @@ void zslFreeLexRange(zlexrangespec *spec);
 int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec);
 unsigned char *zzlFirstInLexRange(unsigned char *zl, zlexrangespec *range);
 unsigned char *zzlLastInLexRange(unsigned char *zl, zlexrangespec *range);
+//返回第一个成员符合字典序的节点
 zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range);
 zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range);
 int zzlLexValueGteMin(unsigned char *p, zlexrangespec *spec);

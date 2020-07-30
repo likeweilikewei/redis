@@ -34,9 +34,13 @@
 #define ZIPLIST_HEAD 0
 #define ZIPLIST_TAIL 1
 
+//创建一个新的压缩列表，o(1)
 unsigned char *ziplistNew(void);
+//合并两个压缩列表
 unsigned char *ziplistMerge(unsigned char **first, unsigned char **second);
+//将新节点添加到头部或者尾部
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where);
+//返回压缩列表上给定索引上的节点
 unsigned char *ziplistIndex(unsigned char *zl, int index);
 unsigned char *ziplistNext(unsigned char *zl, unsigned char *p);
 unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p);
@@ -46,7 +50,9 @@ unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p);
 unsigned char *ziplistDeleteRange(unsigned char *zl, int index, unsigned int num);
 unsigned int ziplistCompare(unsigned char *p, unsigned char *s, unsigned int slen);
 unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int vlen, unsigned int skip);
+//返回字节列表目前占用的内存字节数
 unsigned int ziplistLen(unsigned char *zl);
+//返回列表目前占用的字节数
 size_t ziplistBlobLen(unsigned char *zl);
 void ziplistRepr(unsigned char *zl);
 
